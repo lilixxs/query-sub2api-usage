@@ -1,6 +1,6 @@
 # query-sub2api-usage
 
-当前版本：**1.5.2**（2026-10-01）｜更新记录见 [CHANGELOG.md](./CHANGELOG.md)
+当前版本：**1.5.3**（2026-10-01）｜更新记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 查询 Sub2API / OpenAI-compatible 网关 API key 用量的 OpenCode skill：通过 `GET /v1/usage` 返回余额、配额模式、今日与累计用量、逐模型用量与花费，并可选显示模型单价。
 
@@ -37,6 +37,7 @@ query-sub2api-usage/
 ├─ README.md
 ├─ CHANGELOG.md
 ├─ CONTRIBUTING.md
+├─ CONTRIBUTORS.md                   # 维护者与 AI 开发协助署名
 ├─ SECURITY.md
 ├─ LICENSE                           # MIT
 ├─ config.example.json               # 空模板：base_url / api_key 为空，usage_path=/v1/usage
@@ -194,6 +195,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME/.config/opencode/skil
 测试结果以本地运行或 CI 的实际输出为准。贡献前请先运行，参见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 版本与许可
+
+维护者与 AI 开发协助署名见 [CONTRIBUTORS.md](./CONTRIBUTORS.md)；贡献流程见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 - [GitHub Releases](https://github.com/lilixxs/query-sub2api-usage/releases) 提供可下载源码；首次稳定发布为 `v1.5.1`。
 - 以后推送到 `main` 且本次 CI 成功后，每个新增 commit 自动创建独立 Release，标签为 `commit-<完整 SHA>`，一次推送多个 commit 也逐个发布。重复运行不会重复创建；未推送的本地 commit、其他分支、PR 和手动 CI 不会发布。

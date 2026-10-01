@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
 
-$script:ScriptVersion = '1.5.2'
+$script:ScriptVersion = '1.5.3'
 
 function Read-Settings {
     param([string]$Path)

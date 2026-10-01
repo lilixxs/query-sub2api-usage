@@ -4,6 +4,14 @@
 
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)；条目格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [1.5.3] - 2026-10-01
+
+### 文档
+
+- 新增 `CONTRIBUTORS.md`，记录维护者及当前 AI agent：OpenAI GPT-6.1 Sol（`openai/gpt6.1-sol`）的开发协助署名。
+- README 增加贡献者入口，明确文档署名不改变 Git 提交作者、GitHub Contributors 列表或 MIT 版权声明。
+- 项目版本同步到 1.5.3，用量脚本业务逻辑不变。
+
 ## [1.5.2] - 2026-10-01
 
 ### 仓库
