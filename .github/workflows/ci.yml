@@ -1,0 +1,39 @@
+name: Offline validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-powershell:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Run offline regression tests
+        shell: powershell
+        run: ./tests/test-query-sub2api-usage.ps1
+      - name: Validate release metadata and public template
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scriptText = Get-Content scripts/query-sub2api-usage.ps1 -Raw
+          $version = [regex]::Match($scriptText, '\$script:ScriptVersion = ''([^'']+)''').Groups[1].Value
+          if (-not $version) { throw 'Script version missing' }
+          $skill = Get-Content SKILL.md -Raw -Encoding UTF8
+          $readme = Get-Content README.md -Raw -Encoding UTF8
+          $changelog = Get-Content CHANGELOG.md -Raw -Encoding UTF8
+          if (-not $skill.Contains("**$version**") -or -not $readme.Contains("**$version**") -or -not $changelog.Contains("## [$version]")) {
+            throw 'Release versions are inconsistent'
+          }
+          $config = Get-Content config.example.json -Raw | ConvertFrom-Json
+          if ($config.base_url -ne '' -or $config.api_key -ne '' -or $config.usage_path -ne '/v1/usage') {
+            throw 'Public configuration template must be empty'
+          }
+          $privateFiles = @(git ls-files -- config.json temp_images data reports)
+          if ($privateFiles.Count -gt 0) { throw 'Private files must not be tracked' }
+          Write-Output "Release metadata and public template verified: $version"

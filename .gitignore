@@ -1,0 +1,24 @@
+# 本机凭据与环境配置，公开库只保留空模板。
+/config.json
+/.env
+/.env.*
+!/.env.example
+*.local.json
+*.secrets.json
+*.pem
+*.key
+
+# 用量报告、价格快照、日志与临时截图可能包含个人数据。
+/temp_images/
+/data/
+/reports/
+/model-prices.json
+*.log
+*.tmp
+*.bak
+
+# 编辑器及操作系统文件。
+/.vscode/
+/.idea/
+Thumbs.db
+.DS_Store
