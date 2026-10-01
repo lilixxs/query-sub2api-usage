@@ -1,6 +1,6 @@
 # query-sub2api-usage
 
-当前版本：**1.5.1**（2026-10-01）｜更新记录见 [CHANGELOG.md](./CHANGELOG.md)
+当前版本：**1.5.2**（2026-10-01）｜更新记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 查询 Sub2API / OpenAI-compatible 网关 API key 用量的 OpenCode skill：通过 `GET /v1/usage` 返回余额、配额模式、今日与累计用量、逐模型用量与花费，并可选显示模型单价。
 
@@ -194,6 +194,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME/.config/opencode/skil
 测试结果以本地运行或 CI 的实际输出为准。贡献前请先运行，参见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 版本与许可
+
+- [GitHub Releases](https://github.com/lilixxs/query-sub2api-usage/releases) 提供可下载源码；首次稳定发布为 `v1.5.1`。
+- 以后推送到 `main` 且本次 CI 成功后，每个新增 commit 自动创建独立 Release，标签为 `commit-<完整 SHA>`，一次推送多个 commit 也逐个发布。重复运行不会重复创建；未推送的本地 commit、其他分支、PR 和手动 CI 不会发布。
+- 自动 Release 的标题包含项目版本与短 SHA；commit 标签不是 SemVer 升版，版本号仍按贡献指南同步维护。源码包只包含 Git 已跟踪文件，不包含被忽略的本机 `config.json`。发布失败可重跑对应 Actions；避免改写 `main` 历史。
 
 - 版本号在 `SKILL.md` 顶部、本文件顶部、`CHANGELOG.md` 与脚本 `$script:ScriptVersion`（请求头 `User-Agent: query-sub2api-usage/<版本>`）保持同步，遵循语义化版本；变更见 [CHANGELOG.md](./CHANGELOG.md)。
 - 本项目采用 MIT 许可证，详见 [LICENSE](./LICENSE)。

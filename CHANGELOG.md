@@ -4,6 +4,20 @@
 
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)；条目格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [1.5.2] - 2026-10-01
+
+### 仓库
+
+- 创建首次稳定版本 `v1.5.1` Release，指向已通过离线测试和 GitHub CI 的对应提交。
+- CI 增加自动发布 job：推送到 `main` 且校验成功后，为本次每个新增 commit 创建唯一 `commit-<完整 SHA>` Release，支持多 commit 推送与重复运行跳过。
+- 发布 job 独立授予 `contents: write`，使用 GitHub 临时 Token；拒绝包含私有配置及报告目录的提交，不读取或上传本机配置。
+- README 与贡献指南补充发布规则；项目版本同步到 1.5.2，用量脚本业务逻辑不变。
+
+### 验证
+
+- 238 个离线断言实际执行通过；自动发布脚本的 AST、多 commit 枚举、精确提交目标、增量范围与重复运行跳过均通过本地模拟验证。
+- 首次稳定 Release 已创建并核对目标提交；自动发布实测结果以 GitHub Actions 和对应远端 Release 为准。
+
 ## [1.5.1] - 2026-10-01
 
 ### 文档

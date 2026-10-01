@@ -2,6 +2,8 @@ name: Offline validation
 
 on:
   push:
+    branches:
+      - '**'
   pull_request:
   workflow_dispatch:
 
@@ -39,3 +41,62 @@ jobs:
           $privateFiles = @(git ls-files -- config.json temp_images data reports)
           if ($privateFiles.Count -gt 0) { throw 'Private files must not be tracked' }
           Write-Output "Release metadata and public template verified: $version"
+
+  publish-commit-releases:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: windows-powershell
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out full commit history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Publish a release for each pushed commit
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:BEFORE_SHA -match '^0+$') {
+            $commits = @(git rev-list --reverse $env:AFTER_SHA)
+          } else {
+            $commits = @(git rev-list --reverse "$($env:BEFORE_SHA)..$($env:AFTER_SHA)")
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Could not enumerate pushed commits' }
+          foreach ($sha in $commits) {
+            if ($sha -notmatch '^[0-9a-f]{40}$') { throw 'Invalid commit SHA' }
+            $tag = "commit-$sha"
+            $previousPreference = $ErrorActionPreference
+            try {
+              $ErrorActionPreference = 'Continue'
+              $existing = gh release view $tag --json tagName 2>$null
+              $lookupExitCode = $LASTEXITCODE
+            } finally {
+              $ErrorActionPreference = $previousPreference
+            }
+            if ($lookupExitCode -eq 0) {
+              Write-Output "Release already exists: $tag"
+              continue
+            }
+            $trackedFiles = @(git ls-tree -r --name-only $sha)
+            if ($LASTEXITCODE -ne 0) { throw 'Could not inspect release tree' }
+            if (@($trackedFiles | Where-Object { $_ -match '(^|/)config\.json$|^(temp_images|data|reports)/' }).Count -gt 0) {
+              throw "Private files found in commit $sha; refusing release"
+            }
+            $scriptText = (git show "${sha}:scripts/query-sub2api-usage.ps1") -join "`n"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read commit version' }
+            $version = [regex]::Match($scriptText, '\$script:ScriptVersion = ''([^'']+)''').Groups[1].Value
+            if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version' }
+            $shortSha = $sha.Substring(0, 12)
+            $subject = (git show -s --format=%s $sha) -join ' '
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read commit subject' }
+            $notes = "Automated release for commit $sha.`n`n$subject`n`nProject version: $version. Source archives contain tracked files only."
+            gh release create $tag --target $sha --title "v$version - $shortSha" --notes $notes --latest=true
+            if ($LASTEXITCODE -ne 0) { throw "Release creation failed: $tag" }
+          }

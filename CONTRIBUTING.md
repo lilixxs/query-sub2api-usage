@@ -35,3 +35,9 @@ git diff --check
 提交前检查 `git status --short --ignored` 和暂存差异，确认没有密钥、真实端点、用量报告、价格快照、日志或临时截图。新增测试应覆盖异常输入和边界条件，不以修改预期结果掩盖缺陷。
 
 贡献按本项目 [MIT 许可证](./LICENSE) 分发。
+
+## 自动发布
+
+推送到 `main` 后，本次 CI 成功才启动自动发布；每个新增 commit 对应一个 `commit-<完整 SHA>` Release，多 commit 推送按历史顺序逐个创建。其他分支、PR、手动 CI 不发布；已存在的 Release 跳过，失败后可重跑原 Actions。只在发布 job 授予 `contents: write`，使用 GitHub 提供的临时 `GITHUB_TOKEN`，无需另设 PAT 或仓库 Secret。
+
+不要改写 `main` 历史或删除已有 commit 标签。自动 Release 不替代 SemVer：修改仍按上面的规则同步项目版本和更新日志；发布前检查整个提交范围不含私有文件。

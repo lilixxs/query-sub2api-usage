@@ -5,7 +5,7 @@ description: 查询 Sub2API/OpenAI-compatible 网关 API key 的余额、配额�
 
 # 查询 Sub2API 用量
 
-当前版本：**1.5.1**（2026-10-01）｜更新记录见同目录 [`CHANGELOG.md`](./CHANGELOG.md)
+当前版本：**1.5.2**（2026-10-01）｜更新记录见同目录 [`CHANGELOG.md`](./CHANGELOG.md)
 
 使用本 skill 查询网关的 `GET /v1/usage`。用量脚本只使用 Windows PowerShell 内置命令，不依赖 Python、Node.js、npm 或第三方模块；价格查询独立复用 `/sync-openai-mm-models` skill 的 Python 脚本，不触发模型同步。
 
@@ -203,7 +203,7 @@ query-sub2api-usage/
 
 ## 版本管理
 
-- 当前版本：`1.5.1`；脚本内 `$script:ScriptVersion` 与请求头 `User-Agent` 使用同一版本号。
+- 当前版本：`1.5.2`；脚本内 `$script:ScriptVersion` 与请求头 `User-Agent` 使用同一版本号。
 - 版本号遵循语义化版本（SemVer）：新增功能提升次版本号，修复提升修订号，破坏性变更提升主版本号。
 - 任何改动都应同步更新：本文件顶部和版本管理版本行、`README.md` 顶部版本行、[`CHANGELOG.md`](./CHANGELOG.md) 对应条目、脚本 `$script:ScriptVersion`。
 - `CHANGELOG.md` 记录每个版本的日期与具体变更，格式参考 Keep a Changelog。
