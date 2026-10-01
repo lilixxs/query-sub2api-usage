@@ -20,6 +20,7 @@
 
 - 版本号同步至 1.5.1：`SKILL.md`、`README.md`、本文件、脚本 `$script:ScriptVersion`（`User-Agent: query-sub2api-usage/1.5.1`），脚本逻辑不变。
 - 仓库配套：MIT `LICENSE`、空 `config.example.json`、`.gitignore`（忽略 `config.json`）、离线测试 `tests/test-query-sub2api-usage.ps1`（无第三方库、合成数据）与 CI 配置。
+- CI 只授予仓库只读权限，checkout 固定到 v7.0.1 的完整提交 SHA（Node.js 24），不在工作目录持久保留 GitHub Token。
 
 ### 验证
 
