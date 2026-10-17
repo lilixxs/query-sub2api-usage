@@ -5,7 +5,7 @@ description: 查询 Sub2API/OpenAI-compatible 网关 API key 的余额、配额�
 
 # 查询 Sub2API 用量
 
-当前版本：**1.5.3**（2026-10-01）｜更新记录见同目录 [`CHANGELOG.md`](./CHANGELOG.md)
+当前版本：**1.6.0**（2026-10-17）｜更新记录见同目录 [`CHANGELOG.md`](./CHANGELOG.md)
 
 使用本 skill 查询网关的 `GET /v1/usage`。用量脚本只使用 Windows PowerShell 内置命令，不依赖 Python、Node.js、npm 或第三方模块；价格查询独立复用 `/sync-openai-mm-models` skill 的 Python 脚本，不触发模型同步。
 
@@ -88,7 +88,7 @@ AI 模型/agent 查询时应显式添加 `-Json` 并按其解析；字段包括 
 
 输出模式：
 
-- 默认（Markdown，面向人类）：按下方“最终输出格式”展示配额模式、充值额度、余额进度条、累计花费、今日及累计用量，以及各模型累计用量与花费。
+- 默认（Markdown，面向人类）：按下方“最终输出格式”展示配额模式、充值额度、余额进度条、累计花费、网关侧指标（平均响应、rpm、tpm）、今日及累计用量，以及各模型累计用量与花费。
 - `-Json`：结构化 JSON 摘要（见上）。
 - `-RawJson`：网关原始返回直接转 JSON 输出，**未做任何脱敏**。分享前必须检查敏感字段。
 
@@ -125,15 +125,20 @@ python "$HOME/.config/opencode/skills/sync-openai-mm-models/scripts/query-model-
 
 AI 模型/agent 使用 `-Json` 查询后，必须按以下规则回复，不得改回旧版文本摘要：
 
-- 首行在充值额度前展示“配额模式”，采用中文(英文)格式：`unrestricted` → `无 Key 级限制(unrestricted)`；`quota_limited` → `Key 限额/限速(quota_limited)`。未知非空值显示 `未知模式(原值)`，空值、缺失值及纯空白值显示 `未提供`。
+- 首个列表项展示“配额模式”，采用中文(英文)格式：`unrestricted` → `无 Key 级限制(unrestricted)`；`quota_limited` → `Key 限额/限速(quota_limited)`。未知非空值显示 `未知模式(原值)`，空值、缺失值及纯空白值显示 `未提供`。
 - 模式语义依据 [Sub2API /v1/usage 实现](https://github.com/Wei-Shaw/sub2api/blob/main/backend/internal/handler/gateway_handler.go)：`quota_limited` 表示 API Key 配有总额度或速率限制；`unrestricted` 表示没有 Key 级限制，不代表无限余额，仍受钱包余额或订阅额度约束。中文映射只影响人类可读报告，JSON 的 `mode` 保持原始英文。
 - `充值额度 = balance + total.actual_cost`。
 - “充值额度”仅为当前余额与累计花费推算的展示值，不是财务充值流水，不能用作对账依据。
 - `累计花费 = total.actual_cost`；模型花费同样使用各模型的 `actual_cost`。
-- 只在“剩余余额”行显示 20 格等宽 Markdown 行内代码进度条；已填充格数按 `balance / 充值额度` 四舍五入，百分比保留两位小数。
+- 只在“剩余余额”项显示 20 格等宽 Markdown 行内代码进度条；已填充格数按 `balance / 充值额度` 四舍五入，百分比保留两位小数。
 - 充值额度和累计花费仅用文本显示，不使用图标或进度条。
+- 摘要四项与表格后的价格脚注逐行写成 Markdown 列表项（前缀 `- `），一项一行。禁止用行尾两个空格（硬换行 hard break）制造换行：转发、复制或渲染会删除行尾空格，多项随即并成一段。
+- “网关侧指标”段放在“今日及累计用量”之前，前后各用一条 `---` 分隔；段内三项固定为 `- 平均响应：`、`- rpm：`、`- tpm：`。
+- 平均响应取 `average_duration_ms ÷ 1000`，保留两位小数，后缀 ` s`。
+- `rpm` 是每分钟请求数，`tpm` 是每分钟 Token 数；两者用整数并加千分位分隔符（如 `344,778`），不用 `K`、`M`、`B`。
+- 上述三个字段缺失、非数值、NaN 或负数时显示“未知”；合法的 `0` 显示 `0`。
 - 两个表格的标题和列名使用简洁中文；标题紧贴表格，标题前用水平分隔线与上一内容区隔。
-- 数量使用 `K`、`M`、`B` 紧凑表示；金额摘要保留四位小数，表格金额保留两位小数。
+- 表格中的用量数量使用 `K`、`M`、`B` 紧凑表示；金额摘要保留四位小数，表格金额保留两位小数。
 - 模型表列顺序固定为：模型、单价、输入/输出、缓存读/写、总量、命中率（%）、花费。单价使用上方独立价格查询结果，不从累计花费反推单价。
 - “缓存读/写”合并为一列，格式为 `<cache_read_tokens> / <cache_creation_tokens>`。
 - `缓存命中率 = cache_read_tokens / (input_tokens + cache_read_tokens) × 100%`，保留两位小数；分母为零时显示 `0.00`。
@@ -141,10 +146,17 @@ AI 模型/agent 使用 `-Json` 查询后，必须按以下规则回复，不得�
 - “合计”行必须从总计字段计算，不得将已经舍入的展示值相加。
 
 ```markdown
-配额模式：无 Key 级限制(unrestricted)
-充值额度：$96.5949 USD
-剩余余额：$9.9441 USD · `██░░░░░░░░░░░░░░░░░░` **10.29%**
-累计花费：$86.6508 USD
+- 配额模式：无 Key 级限制(unrestricted)
+- 充值额度：$96.5949 USD
+- 剩余余额：$9.9441 USD · `██░░░░░░░░░░░░░░░░░░` **10.29%**
+- 累计花费：$86.6508 USD
+
+---
+
+**网关侧指标**
+- 平均响应：27.22 s
+- rpm：3
+- tpm：344,778
 
 ---
 
@@ -162,8 +174,8 @@ AI 模型/agent 使用 `-Json` 查询后，必须按以下规则回复，不得�
 | gpt-6-astra | 未知 | 3.8M / 144K | 10.5M / 0 | 14.4M | 73.42 | $75.16 |
 | **合计** | — | **8.8M / 315K** | **38.1M / 0** | **47.3M** | **81.21** | **$86.65** |
 
-价格快照：<快照 UTC 时间>（UTC，非实时）；本表已确认 0、待核实 0、未知 1。
-单价：输入/输出，USD/百万 Token；按次价为 USD/次。仅为公开分组价，不代表当前 Key 实付价；花费仍采用 actual_cost。
+- 价格快照：<快照 UTC 时间>（UTC，非实时）；本表已确认 0、待核实 0、未知 1。
+- 单价：输入/输出，USD/百万 Token；按次价为 USD/次。仅为公开分组价，不代表当前 Key 实付价；花费仍采用 actual_cost。
 ```
 
 示例中的数值仅说明排版；实际回复必须使用本次查询结果。缓存命中率按 Token 计算。
@@ -203,7 +215,7 @@ query-sub2api-usage/
 
 ## 版本管理
 
-- 当前版本：`1.5.3`；脚本内 `$script:ScriptVersion` 与请求头 `User-Agent` 使用同一版本号。
+- 当前版本：`1.6.0`；脚本内 `$script:ScriptVersion` 与请求头 `User-Agent` 使用同一版本号。
 - 版本号遵循语义化版本（SemVer）：新增功能提升次版本号，修复提升修订号，破坏性变更提升主版本号。
 - 任何改动都应同步更新：本文件顶部和版本管理版本行、`README.md` 顶部版本行、[`CHANGELOG.md`](./CHANGELOG.md) 对应条目、脚本 `$script:ScriptVersion`。
 - `CHANGELOG.md` 记录每个版本的日期与具体变更，格式参考 Keep a Changelog。

@@ -258,20 +258,23 @@ Tst-Equal 2.5 (Get-Number $valueHolder 'v') 'get number: string number converted
 Tst-Null (Get-Number $valueHolder 'missing') 'get number: missing field returns null'
 
 # ---------------------------------------------------------------------
-# 第 10 部分：价格数值与单位校验（非法 / 零 / 超小价格）
+# 第 10 部分：数值解析（非负有限数）与单位校验（非法 / 零 / 超小价格）
 # ---------------------------------------------------------------------
-Tst-Equal 0.00000015 (ConvertTo-PriceNumber '0.00000015') 'price number: tiny value parsed'
-Tst-Equal 1.5e-7 (ConvertTo-PriceNumber '1.5e-7') 'price number: scientific notation parsed'
-Tst-Equal 0 (ConvertTo-PriceNumber 0) 'price number: explicit zero accepted'
-Tst-Equal 0 (ConvertTo-PriceNumber '0.0') 'price number: zero string accepted'
-Tst-Equal 2.5 (ConvertTo-PriceNumber '2.5') 'price number: plain decimal parsed'
-Tst-Null (ConvertTo-PriceNumber 'abc') 'price number: non-numeric rejected'
-Tst-Null (ConvertTo-PriceNumber -1) 'price number: negative rejected'
-Tst-Null (ConvertTo-PriceNumber '-0.5') 'price number: negative string rejected'
-Tst-Null (ConvertTo-PriceNumber 'NaN') 'price number: NaN rejected'
-Tst-Null (ConvertTo-PriceNumber 'Infinity') 'price number: Infinity rejected'
-Tst-Null (ConvertTo-PriceNumber $true) 'price number: boolean rejected'
-Tst-Null (ConvertTo-PriceNumber $null) 'price number: null rejected'
+Tst-Equal 0.00000015 (ConvertTo-NonNegativeNumber '0.00000015') 'non-negative number: tiny value parsed from string'
+Tst-Equal 1.5e-7 (ConvertTo-NonNegativeNumber '1.5e-7') 'non-negative number: scientific notation parsed'
+Tst-Equal 0 (ConvertTo-NonNegativeNumber 0) 'non-negative number: explicit zero accepted'
+Tst-Equal 0 (ConvertTo-NonNegativeNumber '0.0') 'non-negative number: zero string accepted'
+Tst-Equal 2.5 (ConvertTo-NonNegativeNumber '2.5') 'non-negative number: plain decimal parsed'
+Tst-Equal 5 (ConvertTo-NonNegativeNumber 5) 'non-negative number: integer value accepted'
+Tst-Equal 0.5 (ConvertTo-NonNegativeNumber ([decimal]0.5)) 'non-negative number: decimal value bypasses string round-trip'
+Tst-Null (ConvertTo-NonNegativeNumber 'abc') 'non-negative number: non-numeric rejected'
+Tst-Null (ConvertTo-NonNegativeNumber -1) 'non-negative number: negative rejected'
+Tst-Null (ConvertTo-NonNegativeNumber '-0.5') 'non-negative number: negative string rejected'
+Tst-Null (ConvertTo-NonNegativeNumber 'NaN') 'non-negative number: NaN rejected'
+Tst-Null (ConvertTo-NonNegativeNumber 'Infinity') 'non-negative number: Infinity rejected'
+Tst-Null (ConvertTo-NonNegativeNumber ([double]::NaN)) 'non-negative number: NaN double rejected'
+Tst-Null (ConvertTo-NonNegativeNumber $true) 'non-negative number: boolean rejected'
+Tst-Null (ConvertTo-NonNegativeNumber $null) 'non-negative number: null rejected'
 
 Tst-Equal '$0.00000015' (Format-UnitAmount 0.00000015 'USD') 'unit amount: tiny non-zero keeps decimals instead of showing free'
 $tinyAmount = Format-UnitAmount 0.00000000000000015 'USD'
@@ -281,6 +284,24 @@ Tst-Equal '$1.5' (Format-UnitAmount 1.5 'USD') 'unit amount: USD symbol'
 Tst-Equal '¥6' (Format-UnitAmount 6 'CNY') 'unit amount: CNY symbol'
 Tst-Equal '2.5 EUR' (Format-UnitAmount 2.5 'EUR') 'unit amount: other currency suffix'
 Tst-Equal '1.5' (Format-UnitAmount 1.5 '') 'unit amount: empty currency renders bare number'
+
+# ---------------------------------------------------------------------
+# 第 10b 部分：网关侧指标格式化（平均响应 / rpm / tpm）
+# ---------------------------------------------------------------------
+Tst-Equal '1.23 s' (Format-ResponseSeconds 1234) 'gateway metric: milliseconds converted to seconds, two decimals'
+Tst-Equal '0.00 s' (Format-ResponseSeconds 0) 'gateway metric: explicit zero duration shows 0.00 s'
+Tst-Equal '27.22 s' (Format-ResponseSeconds 27221.085808580858) 'gateway metric: fractional milliseconds round down at third decimal'
+Tst-Equal '未知' (Format-ResponseSeconds $null) 'gateway metric: null duration shows 未知'
+Tst-Equal '未知' (Format-ResponseSeconds 'abc') 'gateway metric: non-numeric duration shows 未知'
+Tst-Equal '未知' (Format-ResponseSeconds -5) 'gateway metric: negative duration shows 未知'
+
+Tst-Equal '5' (Format-RateInteger 5) 'gateway metric: small rate stays plain'
+Tst-Equal '0' (Format-RateInteger 0) 'gateway metric: explicit zero rate shows 0'
+Tst-Equal '5,000' (Format-RateInteger 5000) 'gateway metric: rate uses thousands separator'
+Tst-Equal '344,778' (Format-RateInteger 344778) 'gateway metric: six-digit rate grouped with comma'
+Tst-Equal '未知' (Format-RateInteger $null) 'gateway metric: null rate shows 未知'
+Tst-Equal '未知' (Format-RateInteger 'Infinity') 'gateway metric: infinity rate shows 未知'
+Tst-Equal '未知' (Format-RateInteger 'abc') 'gateway metric: non-numeric rate shows 未知'
 
 # ---------------------------------------------------------------------
 # 第 11 部分：单位 / 倍率 / 条件旗标判定
@@ -809,27 +830,45 @@ Invoke-Expression $mainText
     $nonEmptyLines = @($mdLines | Where-Object { $_.Trim().Length -gt 0 })
     Tst-True ($nonEmptyLines.Count -gt 0) 'e2e markdown: produced output'
     if ($nonEmptyLines.Count -gt 0) {
-        Tst-Equal '配额模式：无 Key 级限制(unrestricted)' $nonEmptyLines[0] 'e2e markdown: quota mode is the first line, before recharge'
+        Tst-Equal '- 配额模式：无 Key 级限制(unrestricted)' $nonEmptyLines[0] 'e2e markdown: quota mode is the first line, before recharge'
     }
 
     $mdBar = ([string][char]0x2588) * 2 + ([string][char]0x2591) * 18
     $mdExpectations = @(
-        @{ Name = 'e2e markdown: recharge line'; Expected = '充值额度：$96.5949 USD' },
-        # 业务脚本第 566 行格式串为双引号字符串，`` 被 PowerShell 转义为单个反引号，
+        @{ Name = 'e2e markdown: recharge line'; Expected = '- 充值额度：$96.5949 USD' },
+        # 业务脚本余额行的格式串为双引号字符串，`` 被 PowerShell 转义为单个反引号，
         # 实际输出是单反引号代码段（与 SKILL.md 示例的双反引号排版存在外观差异，已记录为观察项）
-        @{ Name = 'e2e markdown: balance line with progress bar and percent'; Expected = ('剩余余额：$9.9441 USD · `{0}` **10.29%**' -f $mdBar) },
-        @{ Name = 'e2e markdown: total spend line'; Expected = '累计花费：$86.6508 USD' },
+        @{ Name = 'e2e markdown: balance line with progress bar and percent'; Expected = ('- 剩余余额：$9.9441 USD · `{0}` **10.29%**' -f $mdBar) },
+        @{ Name = 'e2e markdown: total spend line'; Expected = '- 累计花费：$86.6508 USD' },
+        @{ Name = 'e2e markdown: gateway metric section title'; Expected = '**网关侧指标**' },
+        @{ Name = 'e2e markdown: average response line'; Expected = '- 平均响应：1.23 s' },
+        @{ Name = 'e2e markdown: rpm line'; Expected = '- rpm：5' },
+        @{ Name = 'e2e markdown: tpm line with thousands separator'; Expected = '- tpm：5,000' },
         @{ Name = 'e2e markdown: today table row'; Expected = '| 今日 | 2 | 1.5K | $0.01 |' },
         @{ Name = 'e2e markdown: total usage table row'; Expected = '| 累计 | **348** | **47.3M** | **$86.65** |' },
         @{ Name = 'e2e markdown: model row with token price and escaped name'; Expected = '| gpt-x-astra&#124;weird\* | $1.5 / $6 | 3.8M / 144K | 10.5M / 0 | 14.4M | 73.43 | $75.16 |' },
         @{ Name = 'e2e markdown: request-priced model row'; Expected = '| req-model | $0.02/次 | 0 / 0 | 0 / 0 | 0 | 0.00 | $11.49 |' },
         @{ Name = 'e2e markdown: grand total row computed from totals'; Expected = '| **合计** | **—** | **8.8M / 315K** | **38.1M / 0** | **47.3M** | **81.24** | **$86.65** |' },
-        @{ Name = 'e2e markdown: snapshot footer with verdict counts'; Expected = '价格快照：2026-10-01T08:00:00Z（UTC，非实时）；本表已确认 2、待核实 0、未知 0。' },
-        @{ Name = 'e2e markdown: price disclaimer footnote'; Expected = '单价：输入/输出，USD/百万 Token；按次价为 USD/次。仅为公开分组价，不代表当前 Key 实付价；花费仍采用 actual_cost。' }
+        @{ Name = 'e2e markdown: snapshot footer with verdict counts'; Expected = '- 价格快照：2026-10-01T08:00:00Z（UTC，非实时）；本表已确认 2、待核实 0、未知 0。' },
+        @{ Name = 'e2e markdown: price disclaimer footnote'; Expected = '- 单价：输入/输出，USD/百万 Token；按次价为 USD/次。仅为公开分组价，不代表当前 Key 实付价；花费仍采用 actual_cost。' }
     )
     foreach ($expectation in $mdExpectations) {
         Tst-True (@($mdLines | Where-Object { $_ -ceq $expectation.Expected }).Count -gt 0) $expectation.Name
     }
+
+    # 排版回归：摘要、网关侧指标与价格脚注都是列表项，行内不再依赖行尾空格换行
+    $bareLabelLines = @($mdLines | Where-Object { $_ -match '(配额模式|充值额度|剩余余额|累计花费|平均响应|rpm|tpm|价格快照|单价)：' -and $_ -notmatch '^- ' })
+    Tst-Equal 0 $bareLabelLines.Count 'e2e markdown: every summary/metric/footnote label starts a list item, none left bare'
+    Tst-Equal 0 @($mdRun.StdOut -split "`r?`n" | Where-Object { $_ -match '\s$' }).Count 'e2e markdown: no output line ends with whitespace, so no hard-break dependency'
+
+    # 网关侧指标段位置：摘要之后、今日及累计用量之前，前后各一条分割线
+    $mdSummaryEnd = [array]::IndexOf($mdLines, '- 累计花费：$86.6508 USD')
+    $mdMetricTitle = [array]::IndexOf($mdLines, '**网关侧指标**')
+    $mdTodayTitle = [array]::IndexOf($mdLines, '**今日及累计用量**')
+    Tst-True ($mdSummaryEnd -ge 0 -and $mdMetricTitle -gt $mdSummaryEnd -and $mdTodayTitle -gt $mdMetricTitle) 'e2e markdown: gateway metric section sits between summary and today table'
+    Tst-True ($mdLines[$mdMetricTitle - 1] -ceq '' -and $mdLines[$mdMetricTitle - 2] -ceq '---') 'e2e markdown: divider before the gateway metric section'
+    Tst-True ($mdLines[$mdTodayTitle - 1] -ceq '' -and $mdLines[$mdTodayTitle - 2] -ceq '---') 'e2e markdown: divider between the gateway metric section and the today table'
+
     Tst-NotContainsText $mdRun.StdOut '条件及分组详情' 'e2e markdown: no conditional detail line for simple prices'
     Tst-NotContainsText $mdRun.StdOut '单价未知' 'e2e markdown: snapshot accepted, no unknown-price fallback'
     Tst-NotContainsText $mdRun.StdOut 'sk-' 'e2e markdown: no api key leaked in report'
@@ -844,6 +883,8 @@ Invoke-Expression $mainText
     Tst-Equal 9.9441 ([double]$jsonOut.balance) 'e2e json: balance passthrough'
     Tst-Equal 'USD' ([string]$jsonOut.unit) 'e2e json: unit passthrough'
     Tst-Equal 5 ([int]$jsonOut.rpm) 'e2e json: rpm passthrough'
+    Tst-Equal 5000 ([int]$jsonOut.tpm) 'e2e json: tpm passthrough'
+    Tst-Equal 1234 ([int]$jsonOut.average_duration_ms) 'e2e json: average_duration_ms passthrough'
     Tst-Equal 2 ([int]$jsonOut.today.requests) 'e2e json: today object passthrough'
     Tst-Equal 86.6508 ([double]$jsonOut.total.actual_cost) 'e2e json: total actual_cost passthrough'
     Tst-Equal 2 @($jsonOut.model_stats).Count 'e2e json: model_stats passthrough'

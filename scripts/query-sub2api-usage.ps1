@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 $OutputEncoding = [Console]::OutputEncoding
 
-$script:ScriptVersion = '1.5.3'
+$script:ScriptVersion = '1.6.0'
 
 function Read-Settings {
     param([string]$Path)
@@ -132,6 +132,20 @@ function Format-Money {
     }
 }
 
+function Format-ResponseSeconds {
+    param($Milliseconds)
+    $number = ConvertTo-NonNegativeNumber $Milliseconds
+    if ($null -eq $number) { return '未知' }
+    return ($number / 1000.0).ToString('F2', [Globalization.CultureInfo]::InvariantCulture) + ' s'
+}
+
+function Format-RateInteger {
+    param($Value)
+    $number = ConvertTo-NonNegativeNumber $Value
+    if ($null -eq $number) { return '未知' }
+    return $number.ToString('N0', [Globalization.CultureInfo]::InvariantCulture)
+}
+
 function Get-CacheHitRate {
     param($InputTokens, $CacheReadTokens)
     $inputValue = if ($null -eq $InputTokens) { 0.0 } else { [double]$InputTokens }
@@ -165,14 +179,18 @@ function Get-NormalizedBaseUrl {
     return ($uri.Scheme.ToLowerInvariant() + '://' + $uri.Authority.ToLowerInvariant() + $path.TrimEnd('/'))
 }
 
-function ConvertTo-PriceNumber {
+function ConvertTo-NonNegativeNumber {
     param($Value)
     if ($null -eq $Value) { return $null }
     if ($Value -is [bool]) { return $null }
-    $parsed = 0.0
-    if (-not [double]::TryParse([string]$Value, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$parsed)) { return $null }
-    if ($parsed -lt 0 -or [double]::IsNaN($parsed) -or [double]::IsInfinity($parsed)) { return $null }
-    return $parsed
+    if ($Value -is [ValueType]) {
+        try { $number = [double]$Value } catch { return $null }
+    } else {
+        $number = 0.0
+        if (-not [double]::TryParse([string]$Value, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$number)) { return $null }
+    }
+    if ($number -lt 0 -or [double]::IsNaN($number) -or [double]::IsInfinity($number)) { return $null }
+    return $number
 }
 
 function Format-UnitAmount {
@@ -253,14 +271,14 @@ function Test-ConditionalPrice {
 function Get-SimpleTokenPriceText {
     param($Price, [string]$Currency)
     $pricing = $Price.pricing
-    $inputPrice = ConvertTo-PriceNumber $pricing.input_price
-    $outputPrice = ConvertTo-PriceNumber $pricing.output_price
+    $inputPrice = ConvertTo-NonNegativeNumber $pricing.input_price
+    $outputPrice = ConvertTo-NonNegativeNumber $pricing.output_price
     if ($null -eq $inputPrice -or $null -eq $outputPrice) { return $null }
     if ($inputPrice -lt 0.0 -or $outputPrice -lt 0.0) { return $null }
     if (-not (Test-PriceUnit -Units $Price.units -Name 'input_price' -Expected 'USD/token')) { return $null }
     if (-not (Test-PriceUnit -Units $Price.units -Name 'output_price' -Expected 'USD/token')) { return $null }
-    $scaledInput = ConvertTo-PriceNumber ($inputPrice * 1000000.0)
-    $scaledOutput = ConvertTo-PriceNumber ($outputPrice * 1000000.0)
+    $scaledInput = ConvertTo-NonNegativeNumber ($inputPrice * 1000000.0)
+    $scaledOutput = ConvertTo-NonNegativeNumber ($outputPrice * 1000000.0)
     if ($null -eq $scaledInput -or $null -eq $scaledOutput) { return $null }
     $inText = Format-UnitAmount $scaledInput $Currency
     $outText = Format-UnitAmount $scaledOutput $Currency
@@ -274,7 +292,7 @@ function Get-SimpleRequestPriceText {
         @{ Field = 'per_request_price'; Unit = 'per_request_price' },
         @{ Field = 'request_price'; Unit = 'request_price' }
     )) {
-        $value = ConvertTo-PriceNumber $pricing.($candidate.Field)
+        $value = ConvertTo-NonNegativeNumber $pricing.($candidate.Field)
         if ($null -eq $value) { continue }
         if ($value -lt 0.0) { continue }
         if (-not (Test-PriceUnit -Units $Price.units -Name $candidate.Unit -Expected 'USD/request')) { continue }
@@ -561,10 +579,17 @@ $filled = [math]::Max(0, [math]::Min(20, [int][math]::Round(20.0 * $remainingPer
 $progress = ([string][char]0x2588) * $filled + ([string][char]0x2591) * (20 - $filled)
 $percentText = $remainingPercent.ToString('F2', [Globalization.CultureInfo]::InvariantCulture)
 
-Write-Output ("配额模式：{0}  " -f (Escape-MarkdownCell (Format-QuotaMode $usage.mode)))
-Write-Output ("充值额度：{0} {1}  " -f (Format-Money $recharge $unit 4), $displayUnit)
-Write-Output ("剩余余额：{0} {1} · ``{2}`` **{3}%**  " -f (Format-Money $balance $unit 4), $displayUnit, $progress, $percentText)
-Write-Output ("累计花费：{0} {1}" -f (Format-Money $actualCost $unit 4), $displayUnit)
+Write-Output ("- 配额模式：{0}" -f (Escape-MarkdownCell (Format-QuotaMode $usage.mode)))
+Write-Output ("- 充值额度：{0} {1}" -f (Format-Money $recharge $unit 4), $displayUnit)
+Write-Output ("- 剩余余额：{0} {1} · ``{2}`` **{3}%**" -f (Format-Money $balance $unit 4), $displayUnit, $progress, $percentText)
+Write-Output ("- 累计花费：{0} {1}" -f (Format-Money $actualCost $unit 4), $displayUnit)
+Write-Output ''
+Write-Output '---'
+Write-Output ''
+Write-Output '**网关侧指标**'
+Write-Output ("- 平均响应：{0}" -f (Format-ResponseSeconds $usage.usage.average_duration_ms))
+Write-Output ("- rpm：{0}" -f (Format-RateInteger $usage.usage.rpm))
+Write-Output ("- tpm：{0}" -f (Format-RateInteger $usage.usage.tpm))
 Write-Output ''
 Write-Output '---'
 Write-Output ''
@@ -624,11 +649,11 @@ Write-Output ("| **合计** | **—** | **{0} / {1}** | **{2} / {3}** | **{4}** 
     (Format-Money $actualCost $unit 2))
 Write-Output ''
 if ($snapshot.usable) {
-    Write-Output ("价格快照：{0}（UTC，非实时）；本表已确认 {1}、待核实 {2}、未知 {3}。  " -f (Escape-MarkdownCell $snapshot.generated_at), $priceVerdicts['confirmed'], $priceVerdicts['unverified'], $priceVerdicts['unknown'])
-    Write-Output '单价：输入/输出，USD/百万 Token；按次价为 USD/次。仅为公开分组价，不代表当前 Key 实付价；花费仍采用 actual_cost。'
+    Write-Output ("- 价格快照：{0}（UTC，非实时）；本表已确认 {1}、待核实 {2}、未知 {3}。" -f (Escape-MarkdownCell $snapshot.generated_at), $priceVerdicts['confirmed'], $priceVerdicts['unverified'], $priceVerdicts['unknown'])
+    Write-Output '- 单价：输入/输出，USD/百万 Token；按次价为 USD/次。仅为公开分组价，不代表当前 Key 实付价；花费仍采用 actual_cost。'
     if (@($snapshot.models.Values | Where-Object { @($_.prices).Count -gt 1 -or (@($_.prices).Count -eq 1 -and (Test-ConditionalPrice $_.prices[0])) }).Count -gt 0) {
-        Write-Output ("条件及分组详情：``{0}``。" -f (Escape-MarkdownCode $snapshot.path))
+        Write-Output ("- 条件及分组详情：``{0}``。" -f (Escape-MarkdownCode $snapshot.path))
     }
 } else {
-    Write-Output ("单价未知：{0}；模型用量与花费不受影响。" -f (Escape-MarkdownCell $snapshot.reason))
+    Write-Output ("- 单价未知：{0}；模型用量与花费不受影响。" -f (Escape-MarkdownCell $snapshot.reason))
 }

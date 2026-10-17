@@ -1,6 +1,6 @@
 # query-sub2api-usage
 
-当前版本：**1.5.3**（2026-10-01）｜更新记录见 [CHANGELOG.md](./CHANGELOG.md)
+当前版本：**1.6.0**（2026-10-17）｜更新记录见 [CHANGELOG.md](./CHANGELOG.md)
 
 查询 Sub2API / OpenAI-compatible 网关 API key 用量的 OpenCode skill：通过 `GET /v1/usage` 返回余额、配额模式、今日与累计用量、逐模型用量与花费，并可选显示模型单价。
 
@@ -10,7 +10,7 @@
 
 ## 功能
 
-- 余额、配额模式（`unrestricted` / `quota_limited`）、今日及累计用量、模型明细。
+- 余额、配额模式（`unrestricted` / `quota_limited`）、网关侧指标（平均响应、rpm、tpm）、今日及累计用量、模型明细。
 - 三种输出：Markdown 报告（默认）、结构化 JSON（`-Json`，别名 `-Quiet`）、网关原始 JSON（`-RawJson`）。
 - 配置读取优先级：命令参数 → 环境变量 → `config.json` → 交互式补全（key 隐藏输入）。
 - 可选读取价格快照，为 Markdown 模型表增加“单价”列；不影响 `-Json` / `-RawJson` 输出。
@@ -152,10 +152,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME/.config/opencode/skil
 ## 输出示例（合成数据）
 
 ```markdown
-配额模式：无 Key 级限制(unrestricted)
-充值额度：$100.0000 USD
-剩余余额：$75.0000 USD · `███████████████░░░░░` **75.00%**
-累计花费：$25.0000 USD
+- 配额模式：无 Key 级限制(unrestricted)
+- 充值额度：$100.0000 USD
+- 剩余余额：$75.0000 USD · `███████████████░░░░░` **75.00%**
+- 累计花费：$25.0000 USD
+
+---
+
+**网关侧指标**
+- 平均响应：0.85 s
+- rpm：12
+- tpm：1,500
 
 ---
 
@@ -173,7 +180,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME/.config/opencode/skil
 | demo-model | 未知 | 1.0K / 200 | 3.0K / 0 | 4.2K | 75.00 | $25.00 |
 | **合计** | **—** | **1.0K / 200** | **3.0K / 0** | **4.2K** | **75.00** | **$25.00** |
 
-单价未知：快照文件缺失；模型用量与花费不受影响。
+- 单价未知：快照文件缺失；模型用量与花费不受影响。
 ```
 
 > 以上数值全部为合成示例，仅说明排版；实际输出必须来自本次查询结果。完整的输出格式规范见 [SKILL.md](./SKILL.md)。
